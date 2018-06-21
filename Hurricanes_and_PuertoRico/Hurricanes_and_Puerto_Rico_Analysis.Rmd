@@ -1,0 +1,66 @@
+---
+title: "Tidy Tuesday: Hurricanes & Puerto Rico"
+author: "Ellis Hughes"
+output: rmarkdown::github_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r dl_dataset, include=FALSE}
+library(tidyverse)
+
+Hurricane_Coverage_Online<-read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/week12_mediacloud_hurricanes.csv")%>%
+   mutate(Date=as.Date(Date,"%m/%d/%y"))
+
+Hurricane_Google_Trends<-read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/week12_google_trends.csv",skip = 2)%>%
+  rename(Date="Day")%>%
+   mutate(Date=as.Date(Date,"%m/%d/%y"))
+
+```
+
+## Media Coverage by Hurricane and State
+The data provided for this [#TidyTuesday](https://github.com/rfordatascience/tidytuesday) is provided via [FiveThirtyEight.com](https://fivethirtyeight.com/features/how-to-break-fifa/). It is a look at media coverage of the three major hurricanes of 2017. This was somewhat significant to me because I was on my honeymoon during this time period, and was in Barbados while some of this was occuring. Some of my new family was unable to make it to the wedding due to the hurricanes.
+
+This specific datasets I am looking at is the Media Coverage of the hurricanes and the google search trends of the Hurricanes names. "Media Coverage" was calculated based off of the number of sentences mentiontion either the state or hurricane among the outlets in Media Cloud's "U.S. Top Online News" collection. I merged the two datasets together and was left with a dataset that covered August 20th to September 25th, 2017.
+
+```{r initial_look}
+
+coverage<-merge(Hurricane_Coverage_Online,Hurricane_Google_Trends,by="Date")
+
+head(coverage)
+
+```
+
+
+## Google vs The Internet 
+
+The reason I decided on these two data sets is that realistically google is the front door to the internet. When querying on the internet to learn more, google is usually the tool one would use. At the same time, I would surmise that querying leads to a higher probability of coverage due to the fact that internet news gets its revenue from page clicks. 
+
+Unsurprisingly, the google trend highlights that the more the term is searched for, the more it is written about. Or vice versa.
+
+However, one interesting thing I am seeing is a weekly cyclical pattern to the coverage of Hurricane Harvey. Perhaps something to look into at another time.
+
+```{r Plotting, echo=FALSE, warning=FALSE}
+
+coveragePlot<-coverage%>%
+  {lapply(c("Harvey","Irma","Maria","Jose"),
+         function(Hurricane,data){
+           data[,c(1,grep(Hurricane,colnames(data)))]%>%
+             set_names(c("Date","Media_Coverage","Google_Trends"))%>%
+             mutate(Hurricane=Hurricane)
+         }
+         ,.)%>%{do.call('rbind',.)}}%>%
+  ggplot(aes(x=Date))+
+  geom_point(aes(y=Media_Coverage,size=Google_Trends,color=Hurricane))+
+  ggthemes::theme_fivethirtyeight()+
+  ggtitle("Media Coverage over time,\ncompared to Google Search Trends")
+
+coveragePlot
+```
+
+```{r save_vis, echo=FALSE}
+png("Hurricane_Media_and_GoogleTrends.png",width = 500,height=500)
+coveragePlot
+dev.off()
+  
+```
