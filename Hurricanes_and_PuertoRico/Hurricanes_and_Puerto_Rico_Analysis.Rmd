@@ -1,7 +1,9 @@
 ---
 title: "Tidy Tuesday: Hurricanes & Puerto Rico"
 author: "Ellis Hughes"
-output: rmarkdown::github_document
+output: 
+  html_document:
+    keep_md: yes
 editor_options: 
   chunk_output_type: console
 ---

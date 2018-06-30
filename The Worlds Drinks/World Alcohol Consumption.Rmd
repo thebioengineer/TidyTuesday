@@ -14,9 +14,9 @@ FiveThirtyEight kindly took the WHO data on beverage consumption and broke it do
 
 ```{r import and load}
 library(tidyverse)
-library(plotly)
 library(httr)  
-library(rgdal)  
+library(rgdal)
+library(ggthemes)
 
 alcohol<-read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/week13_alcohol_global.csv")
 set.seed(9917)
@@ -24,7 +24,7 @@ set.seed(9917)
 
 I am more interested in what the world chooses to drink when they do, not what is the total volume. Then which countries were the most similar.
 
-I normalized each beverage type by the total number of beverages, and then performed a PCA. After the PCA, I ran kmeans with 5 centers. In my mind there would be 5 groups of drinkers; Non-Drinkers, one of each of the three categories, and one equal oportunist drinker.
+I normalized each beverage type by the total number of beverages, and then performed a PCA. After the PCA, I originally ran kmeans with 5 centers. In my mind there would be 5 groups of drinkers; Non-Drinkers, one of each of the three categories, and one equal oportunist drinker. As it turned out, as I increased the number of groups, more clear drinking patterns emerged. For example, several countries nearly exclusively drink Beer, another set exclusively drink spirits. here did not appear to be a solely wine drinking grouping.
 
 After plotting the first two PC's, there were no obvious groupings when the points are not colored, but it did look like there were trends. They did get highlighted by the coloring.
 
@@ -46,7 +46,7 @@ alcoholPRCOMP<-NormAlcohol%>%
 
 cluster<-alcoholPRCOMP$x%>%
   data.frame%>%
-  mutate(Cluster=kmeans(.,centers=5)%>%'$'(cluster),
+  mutate(Cluster=kmeans(.,centers=7)%>%'$'(cluster),
          country=rownames(.))
 
 
@@ -63,22 +63,13 @@ summary_groups<-NormAlcohol%>%
   merge(cluster[,c("Cluster","country")])%>%
   group_by(Cluster)%>%
   summarise(
-    # minbeer=min(beer),
-    # medianbeer=median(beer),
-    beer=mean(beer),
-    # maxnbeer=max(beer),
-            
-    # minwine=min(wine),
-    # medianwine=median(wine),
-    wine=mean(wine),
-    # maxnwine=max(wine),
-            
-    # minspirits=min(spirits),
-    # medianspirits=median(spirits),
-    spirits=mean(spirits),
-    # maxnspirits=max(spirits),
-            
-    countries=paste(country,collapse=", "))
+    totalDrinks=sum(beer)+sum(wine)+sum(spirits),
+    beer=sum(beer),
+    wine=sum(wine),
+    spirits=sum(spirits),
+    countries=paste(country,collapse=", "))%>%
+  mutate(beer=beer/totalDrinks,wine=wine/totalDrinks,spirits=spirits/totalDrinks)%>%
+  select(-totalDrinks)
 
 knitr::kable(summary_groups)
 
@@ -97,32 +88,51 @@ world <- readOGR("world-geo.json")
 world_wt <- spTransform(world, CRS("+proj=robin"))
 world_map <- fortify(world_wt)%>%
   left_join(data_frame(id=rownames(world@data), name=world@data$name)) %>%
-  select(-id) %>%
-  rename(country=name) 
+  select(-id)%>%
+  rename(id=name) %>%
+  mutate(id=recode(id,
+                        "Republic of the Congo"="Congo",
+                        "Ivory Coast"="Cote d'Ivoire",
+                        "Democratic Republic of the Congo"="DR Congo",
+                        "Burma (Myanmar)"="Myanmar",
+                        "Cape Verde"="Cabo Verde",
+                        "United States"="USA",
+                        "Antigua and Barbuda"="Antigua & Barbuda",
+                        "Guinea Bissau"="Guinea-Bissau" ,
+                        "Russia"="Russian Federation",
+                        "St. Kitts and Nevis"="St. Kitts & Nevis",
+                        "St. Vincent and the Grenadines"="St. Vincent & the Grenadines",
+                        "Trinidad and Tobago"="Trinidad & Tobago",
+                        "Bosnia and Herzegovina"="Bosnia-Herzegovina",
+                        "Kyrgyz Republic"="Kyrgyzstan",
+                        "Republic of Macedonia"="Macedonia",
+                        "Sao Tome and Principe"="Sao Tome & Principe"
+  ))
 
 GroupedCountries<-summary_groups%>%
-  mutate(DrinkerType=c("Non-Drinkers","Spirits","Beer and Wine","Beer","Beer and Spirits"))%>%
+  mutate(DrinkerType=c("Beer","Mainly Beer","Most Beer and Spirits","Some Beer, Mostly Spirits","Non-Drinkers","Spirits","Wine and Beer"))%>%
   separate_rows(countries,sep = ", ")%>%
   rename(country=countries)%>%
   merge(alcohol,by="country")%>%
-  mutate(Color=rgb(beer,wine,spirits),
-         hover=paste("Country:",country,"<br>Group:",DrinkerType,
+  mutate(hover=paste("Country:",country,"<br>Group:",DrinkerType,
                      "<br>Beer:",beer_servings,"<br>Sprits:",spirit_servings,"<br>Wine:",wine_servings))%>%
-  merge(world_map,by="country")
-
+  merge(world_map,
+        
+        by.x="country",by.y="id")
 
 gg<-ggplot() +
-  geom_map(data=GroupedCountries,map=world_map,aes(map_id = id, x=long, y=lat, group= group, fill=Color))
+  geom_map(data=world_map, map=world_map,
+                    aes(x=long, y=lat, map_id=id),
+                    color="#7f7f7f", fill="white", size=0.15)+
+  geom_map(data=GroupedCountries,
+           map=world_map,
+           aes(map_id = country, x=long, y=lat, fill=DrinkerType,text=hover))+
+  theme_map()+
+  theme(legend.position="bottom")+
+  guides(fill=guide_legend(title="Drinking Habit"))+
+  labs(title="World Drinking Habits\n")
 
-g <- gg + theme_map()
- 
-gg <- gg + theme(panel.margin=unit(1, "lines"))
-gg <- gg + theme(plot.title=element_text(face="bold", hjust=0, size=24))
-gg <- gg + theme(legend.title=element_text(face="bold", hjust=0, size=12))
-gg <- gg + theme(legend.text=element_text(size=10))
-gg <- gg + theme(strip.text=element_text(face="bold", size=10))
-gg <- gg + theme(strip.background=element_blank())
-gg <- gg + theme(legend.position="bottom")
+ggsave(gg,filename = "World_Drinking_habits.PNG",height = 7,width = 10)
  
 gg
 
