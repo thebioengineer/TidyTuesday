@@ -1,0 +1,159 @@
+---
+title: "Dallas Animal Shelter Adoption Statistics"
+author: "Ellis Hughes"
+output: 
+  html_document:
+    keep_md: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+## Woof
+I am a dog person. How can you not love how excited your dog gets when you walk in after a quick, I-was-not-even-gone-5-minutes run to get the newspaper or errands. This weeks [#TidyTuesday](https://github.com/rfordatascience/tidytuesday) on the Dallas animal shelter got me excited to see the trends in adoption. 
+
+The dataset was provided in an excel file from [Dallas Open Data](https://www.dallasopendata.com/City-Services/FY-2017-Dallas-Animal-Shelter-Data/sjyj-ydcj).
+
+```{r dl_dataset, include=FALSE, echo=TRUE}
+library(tidyverse)
+library(openxlsx)
+library(cowplot)
+
+Dallas_Shelter<-read.xlsx("https://github.com/rfordatascience/tidytuesday/raw/master/data/week18_dallas_animals.xlsx",sheet = 2)
+```
+
+```{r dataset_str}
+str(Dallas_Shelter)
+```
+
+#Recidivism
+One curiosity I had was whether there were any animals that tended to return to the shelter, and why. There were 2295 animals that had multiple(>1) run ins with the Dallas Shelter. 1851 of these multiple returners were dogs, 1 was categorized as 'wildlife', and the remaining were cats. The majority of these animals started as stray(1573) animals or were surrendered by their owners(594).
+
+Happily 1442 were found homes, returned to their owner, or put into a foster home. If the story had stopped there, like for the 11689 other animals, this would be a happy story. However, if you look at the last recorded visit for these animals, most were returned or surrendered by their owners, and the number of bleak outcomes is much higher. 
+
+
+```{r Recidivism}
+MultipleVisits<-Dallas_Shelter%>%
+  group_by(animal_id)%>%
+  filter(n()>1)%>%
+  ungroup()
+
+singleVisit<-Dallas_Shelter%>%
+  group_by(animal_id)%>%
+  filter(n()==1)%>%
+  ungroup()
+
+Recidivism_first<-MultipleVisits%>%
+  group_by(animal_id)%>%
+  filter(intake_date==min(intake_date))%>%
+  filter(row_number()==1 )%>%
+  filter(!(outcome_type%in%c('EUTHANIZED','DEAD ON ARRIVAL')))%>% # Some issues with multiple rows for the same animal
+  ungroup()
+
+SummarizeRecidivism_first<-Recidivism_first%>%
+  group_by(intake_type,outcome_type)%>%
+  summarise(count=n())%>%
+  ungroup()%>%
+  mutate(outcome_type=as.factor(outcome_type))
+
+SummarizeRecidivism_last<-MultipleVisits%>%
+  group_by(animal_id)%>%
+  filter(intake_date==max(intake_date))%>%
+  filter(row_number()==1 )%>%
+  ungroup()%>%
+  group_by(intake_type,outcome_type)%>%
+  summarise(count=n())%>%
+  ungroup()%>%
+  mutate(outcome_type=as.factor(outcome_type))
+
+intake_typeLevels<-unique(c(SummarizeRecidivism_first$intake_type,SummarizeRecidivism_last$intake_type))
+```
+
+```{r plot_recidivism, }
+first_record<-ggplot(SummarizeRecidivism_first,
+                    aes(x=outcome_type,y=factor(intake_type,levels=intake_typeLevels)))+
+  geom_tile(aes(fill=count),show.legend = FALSE)+
+  geom_text(aes(label=count,color=ifelse(count>400,0,1)),show.legend = FALSE)+
+  scale_x_discrete(position = "top")+
+  theme(axis.text.x = element_text(angle = -40, hjust = 1))+
+  theme(axis.text.y = element_text(angle = -40, hjust = 1, vjust = 0))+
+  xlab("First Visit Outcome")+
+  ylab("In Status")
+print(first_record)
+
+second_record<-ggplot(SummarizeRecidivism_last,
+                   aes(x=outcome_type,y=factor(intake_type,levels=intake_typeLevels)))+
+  geom_tile(aes(fill=count),show.legend = FALSE)+
+  geom_text(aes(label=count,color=ifelse(count>400,0,1)),show.legend = FALSE)+
+  scale_x_discrete(position = "top")+
+  theme(axis.text.x = element_text(angle = -40, hjust = 1))+
+  theme(axis.text.y = element_text(angle = -40, hjust = 1, vjust = 0))+
+  xlab('Last Recorded Outcome')+
+  ylab("In Status")
+print(second_record)
+
+
+```
+
+#Single Visits
+
+For the Animals that only have a single visit, thankfully a large number to get adopted. However, when you look at the heatmap, there are three cells that are large. All three have the input type being a stray, and nearly for every stray that is adopted, one is euthanized and another transfered to another shelter.
+
+```{r plot_onevisit,fig.height=12,fig.height=9}
+SummarizeSingleVisit<-singleVisit%>%
+  filter(intake_type!="WILDLIFE")%>%
+  filter(!animal_type%in%c("LIVESTOCK","WILDLIFE"))%>%
+  group_by(animal_id)%>%
+  filter(intake_date==max(intake_date))%>%
+  filter(row_number()==1 )%>%
+  ungroup()%>%
+  group_by(intake_type,outcome_type,animal_type)%>%
+  summarise(count=n())%>%
+  ungroup()%>%
+  mutate(outcome_type=as.factor(outcome_type))
+
+single_visit<-ggplot(SummarizeSingleVisit,
+                   aes(x=outcome_type,y=factor(intake_type,levels=intake_typeLevels)))+
+  geom_tile(aes(fill=count),show.legend = FALSE)+
+  geom_text(aes(label=count,color=ifelse(count>1000,0,1)),show.legend = FALSE)+
+  scale_x_discrete(position = "top")+
+  theme(axis.text.x = element_text(angle = -40, hjust = 1))+
+  xlab('Outcome')+
+  ylab("In Status")+
+  facet_grid(.~animal_type)
+print(single_visit)
+
+
+```
+
+```{r recidivism_cowplot, echo=FALSE}
+
+
+second_record_noY<-ggplot(SummarizeRecidivism_last,
+                   aes(x=outcome_type,y=factor(intake_type,levels=intake_typeLevels)))+
+  geom_tile(aes(fill=count),show.legend = FALSE)+
+  geom_text(aes(label=count,color=ifelse(count>400,0,1)),show.legend = FALSE)+
+  scale_x_discrete(position = "top")+
+  theme(axis.text.x = element_text(angle = -40, hjust = 1),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.y = element_blank())+
+  xlab('Last Recorded Outcome')+
+  ylab("In Status")
+
+# now add the title
+title <- ggdraw() + draw_label("Dallas Animal Shelter Statistics", fontface='bold')
+
+gg<-plot_grid(title, 
+              plot_grid(first_record, second_record_noY),
+              single_visit,
+              ncol=1, rel_heights=c(0.1, 1,1),labels=c("","Multiple Records","Single Records")) # rel_heights values control title margins
+ggsave(gg,filename = "Animal_Recidivism.PNG",height = 12,width = 15)
+```
+
+
+
+
+
+
