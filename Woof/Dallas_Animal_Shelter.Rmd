@@ -70,7 +70,7 @@ SummarizeRecidivism_last<-MultipleVisits%>%
 intake_typeLevels<-unique(c(SummarizeRecidivism_first$intake_type,SummarizeRecidivism_last$intake_type))
 ```
 
-```{r plot_recidivism, }
+```{r plot_recidivism}
 first_record<-ggplot(SummarizeRecidivism_first,
                     aes(x=outcome_type,y=factor(intake_type,levels=intake_typeLevels)))+
   geom_tile(aes(fill=count),show.legend = FALSE)+
@@ -100,7 +100,7 @@ print(second_record)
 
 For the Animals that only have a single visit, thankfully a large number to get adopted. However, when you look at the heatmap, there are three cells that are large. All three have the input type being a stray, and nearly for every stray that is adopted, one is euthanized and another transfered to another shelter.
 
-```{r plot_onevisit,fig.height=12,fig.height=9}
+```{r plot_onevisit,fig.height=9,fig.width=12}
 SummarizeSingleVisit<-singleVisit%>%
   filter(intake_type!="WILDLIFE")%>%
   filter(!animal_type%in%c("LIVESTOCK","WILDLIFE"))%>%
@@ -147,9 +147,8 @@ title <- ggdraw() + draw_label("Dallas Animal Shelter Statistics", fontface='bol
 
 gg<-plot_grid(title, 
               plot_grid(first_record, second_record_noY),
-              single_visit,
-              ncol=1, rel_heights=c(0.1, 1,1),labels=c("","Multiple Records","Single Records")) # rel_heights values control title margins
-ggsave(gg,filename = "Animal_Recidivism.PNG",height = 12,width = 15)
+              ncol=1, rel_heights=c(0.1, 1)) # rel_heights values control title margins
+ggsave(gg,filename = "Animal_Recidivism.PNG",height = 9,width = 13)
 ```
 
 
