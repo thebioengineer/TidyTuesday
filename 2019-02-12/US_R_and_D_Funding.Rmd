@@ -1,0 +1,51 @@
+---
+title: "US R&D Funding - TidyTuesday 02-11-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r load_libraries}
+# devtools::install_github("thebioengineer/tidytuesdayR")
+library(tidytuesdayR)
+library(tidyverse)
+
+tt_data<-tt_load("2019-02-12")
+tt_data
+```
+
+
+```{r visualize}
+
+delta<-function(x,index){
+  x<-x[order(index)]
+  delta<-c(NA,(x[seq(2,length(x))]-x[seq(1,length(x)-1)]))
+  delta[delta==Inf]<-0
+  delta
+}
+
+tt_data$fed_r_d_spending%>%
+  group_by(department)%>%
+  mutate(delta_budget=delta(rd_budget,year)/1e9,
+         delta_direction=ifelse(delta_budget>0,"green","red"))%>%
+  mutate(delta_budget=ifelse(is.na(delta_budget)|is.nan(delta_budget),0,delta_budget),
+         totalSum=cumsum(delta_budget))%>%
+  ggplot()+
+  geom_segment(aes(x=year,     xend = year,
+                   y=totalSum, yend = totalSum-delta_budget,
+                   color=I(delta_direction)),
+               size=2) +
+  facet_wrap(department~.,
+             scales = "free_y",
+             strip.position = "top",
+             ncol = 3) +
+  ggtitle(label = "US R&D Dollars") +
+  ylab("Δ in Research and Development Dollars (Billions)") +
+  xlab("Year")
+
+ggsave("US_R&D_Funding.png")
+
+```
+
+
