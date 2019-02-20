@@ -36,7 +36,7 @@ total_delta<-function(x,index){
   }
   MinYear<-min(names(x_sum)[!is.na(x_sum)])
   MaxYear<-max(names(x_sum)[!is.na(x_sum)])
-  abs(x_sum[MinYear]-x_sum[MaxYear])
+  x_sum[MaxYear]-x_sum[MinYear]
 }
 cumsum_alt<-function(delta,dirval){
   #get first non-na location
@@ -63,12 +63,14 @@ top_Fields<-Phd_rates%>%
   filter(total_delta_phds%in%sort(unique(total_delta_phds),decreasing = TRUE)[1:10])
 
 top_Fields%>%
+  mutate(field_alt=sapply(field,wrap_header))%>%
+  arrange(desc(total_delta_phds))%>%
   ggplot()+
   geom_segment(aes(x=year,     xend = year,
                    y=totalSum, yend = totalSum-delta_phds,
                    color=I(delta_direction)),
-               size=2) +
-  facet_wrap(field~.,
+               size=3) +
+  facet_wrap(field_alt~.,
              scales = "free",
              strip.position = "top",
              ncol = 5) +
@@ -80,7 +82,7 @@ top_Fields%>%
   xlab("Year")+
   theme_linedraw()
 
-ggsave("PhD_Grad_Rates.png")
+ggsave("2019-02-19/PhD_Grad_Rates.png")
 
 ```
 
