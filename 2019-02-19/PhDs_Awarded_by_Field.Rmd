@@ -5,7 +5,6 @@ editor_options:
   chunk_output_type: console
 ---
 
-
 ```{r load_libraries}
 # devtools::install_github("thebioengineer/tidytuesdayR")
 library(tidytuesdayR)
@@ -14,7 +13,6 @@ library(tidyverse)
 tt_data<-tt_load(2019,8)
 tt_data
 ```
-
 
 ```{r visualize}
 delta<-function(x,index){
@@ -50,19 +48,15 @@ wrap_header <- function(text) {
   return(wtext)
 }
 
-Phd_rates<-tt_data$phd_by_field%>%
+tt_data$phd_by_field%>%
   #calculate values by field
   group_by(field)%>%
   mutate(delta_phds=delta(n_phds,year),
          delta_direction=ifelse(delta_phds>0,"blue","red"),
          totalSum=cumsum_alt(delta_phds,n_phds),
          total_delta_phds=total_delta(n_phds,year))%>%
-  ungroup()
-
-top_Fields<-Phd_rates%>%
-  filter(total_delta_phds%in%sort(unique(total_delta_phds),decreasing = TRUE)[1:10])
-
-top_Fields%>%
+  ungroup()%>%
+  filter(total_delta_phds%in%sort(unique(total_delta_phds),decreasing = TRUE)[1:10])%>%
   mutate(field_alt=sapply(field,wrap_header))%>%
   arrange(desc(total_delta_phds))%>%
   ggplot()+
