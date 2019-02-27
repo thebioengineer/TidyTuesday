@@ -1,0 +1,50 @@
+---
+title: "PhDs Awarded by Field - TidyTuesday 02-19-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+# devtools::install_github("thebioengineer/tidytuesdayR")
+library(tidytuesdayR)
+library(tidyverse)
+library(gganimate)
+
+tt_data<-tt_load(2019,week=9)
+tt_data
+```
+
+```{r transform}
+
+
+#which departure/arrival pairs have longest rides?
+station_pairings<-tt_data$full_trains%>%
+  group_by(departure_station,arrival_station)%>%
+  summarise(mean_journey_time=sum(journey_time_avg*total_num_trips)/sum(total_num_trips))%>%
+  ungroup%>%
+  filter(mean_journey_time>quantile(.data$mean_journey_time,.80))%>%
+  unite(pairings,departure_station,arrival_station)%>%
+  pull(pairings)
+
+
+Trains_delays<-tt_data$full_trains%>%
+  unite(route,departure_station,arrival_station,sep = " -> ")%>%
+  select(year,month,service,route,total_num_trips,starts_with("num_greater"))%>%
+  group_by(year,month,route)%>%
+  summarize(totalTrips=sum(total_num_trips),
+            late_15=sum(num_greater_15_min_late),
+            late_30=sum(num_greater_30_min_late),
+            late_60=sum(num_greater_60_min_late),
+            perc_15_late=late_15/totalTrips*100,
+            perc_30_late=late_30/totalTrips*100,
+            perc_60_late=late_60/totalTrips*100)%>%
+  arrange(route,year,month)%>%
+  mutate(date=as.Date(paste(year,month,"1",sep = "-"),format="%Y-%m-%d"))
+
+```
+
+
+
+
+
