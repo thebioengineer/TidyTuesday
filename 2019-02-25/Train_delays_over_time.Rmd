@@ -10,7 +10,8 @@ editor_options:
 library(tidytuesdayR)
 library(tidyverse)
 library(gganimate)
-library(ggalluvial)
+library(rvest)
+library(maps)
 
 tt_data<-tt_load(2019,week=9)
 tt_data
@@ -41,20 +42,53 @@ Trains_delays<-tt_data$full_trains%>%
             perc_30_late=late_30/totalTrips*100,
             perc_60_late=late_60/totalTrips*100)%>%
   arrange(route,year,month)%>%
-  mutate(date=as.Date(paste(year,month,"1",sep = "-"),format="%Y-%m-%d"))
+  mutate(date=as.Date(paste(year,month,"1",sep = "-"),format="%Y-%m-%d"))%>%
+  ungroup
 
 
+# Get "directions" for train routes
+directions<-Trains_delays%>%
+  select(route)%>%
+  distinct%>%
+  separate(route,c("origin","destination")," -> ")%>%
+  unlist()%>%
+  unique
 
-# ordered_Delays<-Trains_delays%>%
-#   filter(route%in%station_pairings)%>% #Not so sure about including this filter
-#   split(as.character(.$date))%>%
-#   map(~data.frame(date=.x$date,
-#                   delay=.$perc_15_late[order(.$perc_15_late)],
-#                   ndelay=.$late_15[order(.$perc_15_late)],
-#                   route=.$route[order(.$perc_15_late)]
-#                   ))%>%
-#   bind_rows() %>% 
-#   filter(!is.na(delay))
+getCoords<-function(station){
+  url<-paste0("https://en.wikipedia.org/w/index.php?search=",gsub(" ","+",station),"+railway+station")
+  wiki_page<-xml2::read_html(url)
+  coords<-wiki_page%>%
+    rvest::html_node(".geo-dms")%>%
+    rvest::html_text()
+
+  coords<-clean_coords(strsplit(coords," ")[[1]])
+  names(coords)<-c("long","lat")
+  coords
+}
+
+clean_coords<-function(coord){
+  coord_dec<-str_extract_all(coord, "\\-*\\d+\\.*\\d*")%>%
+    purrr::map(as.numeric)%>%
+    purrr::map(~.x[1] + (.x[2]/60) + (.x[3]/3600))
+  
+  coord<-purrr::map2(coord_dec,coord,
+                     function(.x,.y){
+                       dirs<-data.frame(val=rep(1,length(.x)))
+                       dirs$coord<-toupper(str_sub(.y,-1))
+                       dirs$val[dirs$coord%in%c("S","W")]<--1
+                       .x*dirs$val
+                     })
+  
+  data.frame(coord)
+}
+
+station_coords<-directions%>%
+  purrr::map_df(~data.frame(station=.x,getCoords(.x),stringsAsFactors = FALSE))
+
+
+# https://ggplot2.tidyverse.org/reference/geom_map.html
+France<-map_data('france')
+
 
 
 
