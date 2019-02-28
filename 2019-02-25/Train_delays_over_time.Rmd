@@ -1,5 +1,5 @@
 ---
-title: "PhDs Awarded by Field - TidyTuesday 02-19-2019"
+title: "Train Delays in France - TidyTuesday 02-25-2019"
 output: html_notebook
 editor_options: 
   chunk_output_type: console
@@ -10,6 +10,7 @@ editor_options:
 library(tidytuesdayR)
 library(tidyverse)
 library(gganimate)
+library(ggalluvial)
 
 tt_data<-tt_load(2019,week=9)
 tt_data
@@ -24,12 +25,12 @@ station_pairings<-tt_data$full_trains%>%
   summarise(mean_journey_time=sum(journey_time_avg*total_num_trips)/sum(total_num_trips))%>%
   ungroup%>%
   filter(mean_journey_time>quantile(.data$mean_journey_time,.80))%>%
-  unite(pairings,departure_station,arrival_station)%>%
-  pull(pairings)
+  unite(routes,departure_station,arrival_station,sep = " -> ")%>%
+  pull(routes)
 
 
 Trains_delays<-tt_data$full_trains%>%
-  unite(route,departure_station,arrival_station,sep = " -> ")%>%
+  unite(route,departure_station,arrival_station,sep = " -> ") %>% 
   select(year,month,service,route,total_num_trips,starts_with("num_greater"))%>%
   group_by(year,month,route)%>%
   summarize(totalTrips=sum(total_num_trips),
@@ -41,6 +42,21 @@ Trains_delays<-tt_data$full_trains%>%
             perc_60_late=late_60/totalTrips*100)%>%
   arrange(route,year,month)%>%
   mutate(date=as.Date(paste(year,month,"1",sep = "-"),format="%Y-%m-%d"))
+
+
+
+# ordered_Delays<-Trains_delays%>%
+#   filter(route%in%station_pairings)%>% #Not so sure about including this filter
+#   split(as.character(.$date))%>%
+#   map(~data.frame(date=.x$date,
+#                   delay=.$perc_15_late[order(.$perc_15_late)],
+#                   ndelay=.$late_15[order(.$perc_15_late)],
+#                   route=.$route[order(.$perc_15_late)]
+#                   ))%>%
+#   bind_rows() %>% 
+#   filter(!is.na(delay))
+
+
 
 ```
 
