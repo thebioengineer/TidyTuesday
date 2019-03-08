@@ -36,7 +36,8 @@ lp
 
 saveWidget(lp,
            "Percent_Employed_by_Gender.html",     
-           selfcontained = TRUE,
+           selfcontained = FALSE,
+           libdir = "lib"
            title = "Employment Types by Gender")
 
 
