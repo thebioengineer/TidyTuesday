@@ -30,14 +30,15 @@ lp<-tt_data$employed_gender%>%
   add_trace(x = ~year, y = ~total_part_time,  name = 'Total Part Time',  mode = 'lines+marker', line=list(color ="black",  dash = 'dash')) %>% 
   layout(title = 'Gender Employment Over time',
          yaxis =list(title = 'Year') ,
-         xaxis = list(title = 'Percent Employed as Full or Part Time' ))
+         xaxis = list(title = 'Percent Employed as Full or Part Time' ))%>%
+  layout(showlegend = FALSE)
 
-lp
+lp$sizingPolicy$padding <- "0"
 
 saveWidget(lp,
            "Percent_Employed_by_Gender.html",     
            selfcontained = FALSE,
-           libdir = "lib"
+           libdir = "lib",
            title = "Employment Types by Gender")
 
 
