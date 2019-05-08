@@ -1,5 +1,5 @@
 ---
-title: "Train Delays in France - TidyTuesday 02-25-2019"
+title: "Time to Grand Salami - TidyTuesday 04-10-2019"
 output: html_notebook
 editor_options: 
   chunk_output_type: console
@@ -9,88 +9,55 @@ editor_options:
 # devtools::install_github("thebioengineer/tidytuesdayR")
 library(tidytuesdayR)
 library(tidyverse)
-library(gganimate)
-library(rvest)
-library(maps)
+library(lubridate)
 
-tt_data<-tt_load(2019,week=9)
+tt_data<-tt_load("2019-04-09")
 tt_data
 ```
 
 ```{r transform}
 
 
-#which departure/arrival pairs have longest rides?
-station_pairings<-tt_data$full_trains%>%
-  group_by(departure_station,arrival_station)%>%
-  summarise(mean_journey_time=sum(journey_time_avg*total_num_trips)/sum(total_num_trips))%>%
-  ungroup%>%
-  filter(mean_journey_time>quantile(.data$mean_journey_time,.80))%>%
-  unite(routes,departure_station,arrival_station,sep = " -> ")%>%
-  pull(routes)
-
-
-Trains_delays<-tt_data$full_trains%>%
-  unite(route,departure_station,arrival_station,sep = " -> ") %>% 
-  select(year,month,service,route,total_num_trips,starts_with("num_greater"))%>%
-  group_by(year,month,route)%>%
-  summarize(totalTrips=sum(total_num_trips),
-            late_15=sum(num_greater_15_min_late),
-            late_30=sum(num_greater_30_min_late),
-            late_60=sum(num_greater_60_min_late),
-            perc_15_late=late_15/totalTrips*100,
-            perc_30_late=late_30/totalTrips*100,
-            perc_60_late=late_60/totalTrips*100)%>%
-  arrange(route,year,month)%>%
-  mutate(date=as.Date(paste(year,month,"1",sep = "-"),format="%Y-%m-%d"))%>%
-  ungroup
-
-
-# Get "directions" for train routes
-directions<-Trains_delays%>%
-  select(route)%>%
-  distinct%>%
-  separate(route,c("origin","destination")," -> ")%>%
-  unlist()%>%
-  unique
-
-getCoords<-function(station){
-  url<-paste0("https://en.wikipedia.org/w/index.php?search=",gsub(" ","+",station),"+railway+station")
-  wiki_page<-xml2::read_html(url)
-  coords<-wiki_page%>%
-    rvest::html_node(".geo-dms")%>%
-    rvest::html_text()
-
-  coords<-clean_coords(strsplit(coords," ")[[1]])
-  names(coords)<-c("long","lat")
-  coords
+time_since_win<-function(dat){
+  
+  dat<-dat %>% arrange(rolling_win_count)
+  
+  df<-data.frame(dat[1,]) %>% 
+    mutate(age=abs(floor(as.numeric(difftime(date_of_birth,tournament_date,units = "days"))/365)),
+           delta_days=0)
+  
+  if(nrow(dat)>1){
+    win <-seq(2,nrow(dat))
+    df_wins<-data.frame(dat[win,]) %>% 
+        mutate(age=abs(floor(as.numeric(difftime(tournament_date,date_of_birth,units = "days"))/365)),
+               delta_days=floor(as.numeric(difftime(tournament_date,dat[win-1,"tournament_date"][[1]],units = "days"))))
+    df<-bind_rows(df,df_wins)
+  }
+  return(df)
 }
 
-clean_coords<-function(coord){
-  coord_dec<-str_extract_all(coord, "\\-*\\d+\\.*\\d*")%>%
-    purrr::map(as.numeric)%>%
-    purrr::map(~.x[1] + (.x[2]/60) + (.x[3]/3600))
-  
-  coord<-purrr::map2(coord_dec,coord,
-                     function(.x,.y){
-                       dirs<-data.frame(val=rep(1,length(.x)))
-                       dirs$coord<-toupper(str_sub(.y,-1))
-                       dirs$val[dirs$coord%in%c("S","W")]<--1
-                       .x*dirs$val
-                     })
-  
-  data.frame(coord)
-}
+# is there a relationship between  age and the time between next grand slam?
 
-station_coords<-directions%>%
-  purrr::map_df(~data.frame(station=.x,getCoords(.x),stringsAsFactors = FALSE))
+t_wins<-tt_data$grand_slams%>%
+  left_join(tt_data$player_dob%>%select(name,date_of_birth))%>%
+  group_by(name)%>%
+  do({time_since_win(.)})
 
 
-# https://ggplot2.tidyverse.org/reference/geom_map.html
-France<-map_data('france')
-
-
-
+t_wins%>%
+  filter(rolling_win_count>1) %>% 
+  mutate(age_decile=cut(age,
+                        breaks=c(0,20,30,40,50,Inf))) %>%
+  group_by(name,age_decile)%>%
+  summarize(rolling_win_count = max(rolling_win_count),
+            mean_delta_days = mean(delta_days),
+            gender = unique(gender),
+            nwins_decile=n()) %>% 
+  ggplot()+
+  geom_jitter(aes(x=mean_delta_days,
+                   y= nwins_decile,
+                  color=rolling_win_count))+
+  facet_grid(age_decile~gender)
 
 ```
 
