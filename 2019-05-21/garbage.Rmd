@@ -61,6 +61,8 @@ saveWidget(gdp_ratio_plotly,
            libdir = "lib",
            title = "atio of Mismanaged Plastic to Total Plastic by GDP in 2010 - TidyTuesday May 22, 2019")
 
+ggsave("Plastic_Ratio_vs_GDP.png",gdp_ratio)
+
 
 ```
 
