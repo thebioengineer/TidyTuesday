@@ -9,9 +9,6 @@ editor_options:
 library(tidyverse)
 library(tidytuesdayR)
 
-library(igraph)
-library(htmlwidgets)
-
 tt<-tt_load("2019-07-09")
 tt
 ```
