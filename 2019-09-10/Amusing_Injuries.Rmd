@@ -1,0 +1,49 @@
+---
+title: "Amusing Injuries"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(plotly)
+library(geofacet)
+
+tt<-tt_load("2019-09-10")
+tt
+```
+
+```{r transform}
+
+injuries_by_state<-tt$saferparks %>% 
+  select(state      = acc_state,
+         industry   = industry_sector,
+         operator   = op_error,
+         mechanical = mechanical,
+         employee   = employee,
+         age        = age_youngest) %>% 
+  mutate(operator = if_else(is.na(operator),0,1),
+         mechanical = if_else(is.na(mechanical),0,1),
+         employee = if_else(is.na(employee),0,1),
+         other = as.numeric((operator + mechanical + employee) == 0 ))
+
+injured_plots<-injuries_by_state %>% 
+  gather(error_type,at_fault,operator,mechanical,employee,other) %>% 
+  filter(at_fault == 1) %>% 
+  ggplot(aes(x=age, fill = error_type)) +
+  geom_density() +
+  theme_bw() +
+  facet_grid(industry~error_type)+
+  theme(legend.position = NULL)
+
+
+ggplotly(injured_plots)
+
+```
+
+
+
+
+

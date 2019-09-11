@@ -1,0 +1,49 @@
+---
+title: "Simpsons Guest Appearances"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+
+tt<-tt_load_gh("2019-08-27")
+tt
+```
+
+```{r transform}
+
+guest_appearances <- readr::read_delim("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-27/simpsons-guests.csv", delim = "|", quote = "")
+
+
+
+roles <- guest_appearances %>% 
+  select(season,number,guest_star,role) %>% 
+  rowwise() %>% 
+  do(data.frame(season     = .$season,
+                number     = .$number,
+                guest_star = .$guest_star,
+                role       = trimws(strsplit(.$role,";")[[1]])))
+
+
+roles_ot <- roles %>% 
+  distinct(season,guest_star,role) %>% 
+  group_by(season,guest_star) %>% 
+  summarize(nroles = n()) %>% 
+  ungroup()
+
+
+ggplot(roles_ot)+
+  geom_density(aes(x=nroles))+
+  facet_wrap(season~.)
+
+  
+
+```
+
+
+
+
+
