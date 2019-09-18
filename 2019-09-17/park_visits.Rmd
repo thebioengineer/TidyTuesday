@@ -1,0 +1,64 @@
+---
+title: "National Parks"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(plotly)
+library(ggridges)
+library(geofacet)
+
+tt<-tt_load("2019-09-17")
+tt
+```
+
+```{r transform}
+
+top_regional_park <- tt$national_parks %>% 
+  filter(year=="Total",
+         !is.na(parkname)) %>% 
+  group_by(state) %>% 
+  summarise(bestPark=parkname[which.max(visitors)])
+
+
+nparks<-tt$national_parks %>% 
+  filter(year!="Total",
+         !is.na(parkname)) %>% 
+  mutate(year = as.Date(paste0("01-01-",year),format="%m-%d-%Y")) %>% 
+  select(parkname,year,region,state,unit_type,visitors) %>% 
+  filter(parkname %in% top_regional_park$bestPark) %>% 
+  group_by(region,parkname) %>% 
+  mutate(regional_park_max = max(visitors)) %>% 
+  group_by(parkname) %>% 
+  mutate(visitors = visitors/max(visitors),
+         age = min(year)) %>% 
+  arrange(region,desc(age),year) %>% 
+  ungroup %>% 
+  mutate(
+    region = factor(region,levels=unique(region)),
+    parkname = factor(parkname,levels=unique(parkname))
+  )
+
+park_attendees<-nparks %>% 
+  ggplot(aes(x = year,
+           y = parkname,
+           height=visitors,
+           fill = region))+
+  geom_ridgeline()+
+  facet_grid(region~.,
+             scales = "free_y",
+             space = "free_y")+
+  theme_minimal()+
+  ggtitle("Park Attendance Over Time (Normalized by maximal attendance)")
+park_attendees
+
+```
+
+
+
+
+
