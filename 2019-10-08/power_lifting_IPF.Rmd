@@ -1,0 +1,91 @@
+---
+title: "The lift of POWER"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+
+tt<-tt_load("2019-10-08")
+tt
+```
+
+Do doping have an effect?
+
+```{r transform}
+
+doping_competitors <- tt$ipf_lifts %>% 
+  filter(place=="DD") %>% 
+  pull(name)
+  
+
+# first event of doping for each person and center at that event
+center_first_dope_event <- tt$ipf_lifts %>% 
+  filter(name %in% doping_competitors) %>% 
+  group_by(name) %>% 
+  arrange(date) %>% 
+  mutate(
+    first_dope = min(date[place=="DD"]),
+    npriordope = sum(date < first_dope),
+    npostdope  = sum(date > first_dope)
+  ) %>% 
+  filter(npriordope > 0, npostdope >0) %>% 
+  mutate(days_centered_first_dope = date - first_dope) %>% 
+  gather("lift","kg",starts_with("best")) %>% 
+  group_by(name,lift) %>% 
+  arrange(days_centered_first_dope) %>% 
+  mutate(best_prior_dope = max(kg[days_centered_first_dope<0]),na.rm=TRUE) %>% 
+  mutate(normalized_kg = kg/best_prior_dope) %>% 
+  group_by(name) %>% 
+  mutate(caught_again = any(place[days_centered_first_dope>0]=="DD")) %>% 
+  ungroup
+  
+
+```
+
+```{r plot}
+
+center_first_dope_event %>% 
+  filter(!is.na(kg)) %>% 
+  ggplot(aes(
+    x=days_centered_first_dope,
+    y=normalized_kg,
+    group=name,
+    color=caught_again
+    ))+
+  geom_point()+
+  geom_line()+
+  geom_hline(aes(yintercept=1))+
+  facet_grid(sex+caught_again~lift, scales = "free_y")+
+  theme_bw()+
+  scale_y_continuous(
+    breaks = c(.5,.75,.9,1,1.1,1.25,1.5)
+  )
+
+
+```
+
+
+```{r}
+
+center_first_dope_event %>% 
+  select(name,date,place,event,days_centered_first_dope) %>% 
+  mutate(post_dope = days_centered_first_dope>0) %>% 
+  distinct() %>% 
+  group_by(name,post_dope) %>% 
+  summarise(rank = mean(as.numeric(place),na.rm = TRUE)) %>% 
+  spread(post_dope,rank) %>% 
+  mutate(better_post = `TRUE` < `FALSE`) %>% 
+  gather(post_dope,rank,`TRUE`,`FALSE`) %>% 
+  ggplot(aes(x=post_dope,y=rank))+
+  geom_boxplot()+
+  geom_jitter(height = 0)+
+  facet_grid(~better_post)+
+  geom_line(aes(group=name))+
+  scale_y_continuous(breaks = 1:10)
+
+
+```
