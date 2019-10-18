@@ -9,6 +9,7 @@ editor_options:
 library(tidyverse)
 library(tidytuesdayR)
 library(plotly)
+library(htmlwidgets)
 
 tt<-tt_load("2019-10-15")
 tt
@@ -56,7 +57,6 @@ efficiency <- small_epa_cars %>%
     ))+
   geom_point(
     aes(color = drive,
-        shape = cylinders,
         label = Make),
     alpha = .5
   )+
@@ -80,11 +80,16 @@ efficiency_plotly <- ggplotly(efficiency)%>%
 
 efficiency_plotly$sizingPolicy$padding <- "0"
 
+
+
 saveWidget(efficiency_plotly,
-           file.path(here::here(),"2019-10-15-","bi_epa_mtcars.html",     
+           file.path(here::here(),"2019-10-15","bi_epa_mtcars.html"),     
            selfcontained = FALSE,
            libdir = "lib",
            title = "CO2 vs Highway MPG")
+
+ggsave(file.path(here::here(),"2019-10-15","bi_epa_mtcars.png"),
+       efficiency)
 
 
 ```
