@@ -1,0 +1,62 @@
+---
+title: "Womens World Cup - TidyTuesday 07-09-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+
+tt<-tt_load("2019-07-09")
+tt
+```
+
+```{r transform}
+
+
+wwc_distance<-tt$wwc_outcomes %>%
+  group_by(year,team) %>% 
+  summarize(best_round = case_when(
+    "Final"               %in% round ~ "Final",
+    "Third Place Playoff" %in% round ~"Third Place Playoff",
+    "Semi Final"          %in% round ~ "Semi Final",
+    "Quarter Final"       %in% round ~ "Quarter Final",
+    "Round of 16"         %in% round ~ "Round of 16",
+    "Group"               %in% round ~ "Group")) %>%
+  ungroup %>% 
+  mutate(best_round=factor(best_round,c("Final","Third Place Playoff","Semi Final","Quarter Final",
+                                       "Round of 16","Group")))
+
+theme_bare <- theme(
+  axis.line = element_blank(), 
+  axis.ticks = element_blank(), 
+  #axis.ticks.length = unit(0, "lines"), # Error 
+  axis.ticks.margin = unit(c(0,0,0,0), "lines"), 
+  legend.position = "none", 
+  panel.background = element_rect(fill = "black"), 
+  panel.border = element_blank(), 
+  panel.grid.major = element_blank(), 
+  panel.grid.minor = element_blank(), 
+  plot.background = element_rect(fill = "gray"))
+
+ggplot(wwc_distance)+
+  geom_line(aes(x=year,y=abs(as.numeric(best_round)-7),color=team,size=1.5))+
+  theme_bare+
+  scale_y_continuous(breaks=c(6:1),
+                     labels=levels(wwc_distance$best_round))+
+  ylab("Best Round Achieved")+
+  xlab("World Cup Year")+
+  ggtitle("World Cup Finishes")
+
+
+ggsave("Womens_World_Cup_Finishes.png")
+
+
+```
+
+
+
+
+

@@ -1,0 +1,95 @@
+---
+title: "EPA EPA"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(plotly)
+library(htmlwidgets)
+
+tt<-tt_load("2019-10-15")
+tt
+```
+
+Do doping have an effect?
+
+```{r transform}
+
+small_epa_cars <- tt$big_epa_cars %>% 
+  select(highway08,co2,drive,fuelType,make,model,year,cylinders) %>% 
+  distinct(make,model,fuelType,cylinders,.keep_all = TRUE) %>% 
+  filter(co2>0) %>% 
+  mutate( gco2pergallon = co2 * highway08 ) %>% 
+  group_by(make) %>% 
+  filter(n()>20) %>% 
+  ungroup %>% 
+  mutate(
+    year = lubridate::as_date(paste0(year,"-01-01")),
+    drive = case_when(
+      drive == "All-Wheel Drive" ~ "4-Wheel Drive",
+      drive == "Part-time 4-Wheel Drive" ~ "4-Wheel Drive",
+      TRUE ~ drive
+    ),
+    fuelType = case_when(
+      grepl("Gasoline",fuelType) ~ "Gasoline",
+      grepl("Premium",fuelType) ~ "Premium",
+      grepl("Regular",fuelType) ~ "Regular",
+      TRUE ~ fuelType
+    ),
+    cylinders = as.character(cylinders)
+  )
+
+
+```
+
+```{r plot}
+
+efficiency <- small_epa_cars %>% 
+  mutate( year = lubridate::year(as.character(year))) %>% 
+  mutate( Make = paste(make,"<br>Model:",model,"<br>Year:",year,"<br>Cylinders:",cylinders)) %>%
+  ggplot(aes(
+    x=highway08,
+    y=co2
+    ))+
+  geom_point(
+    aes(color = drive,
+        label = Make),
+    alpha = .5
+  )+
+  facet_grid( ~ fuelType  )+
+  theme_bw()+
+  theme(legend.position = "bottom",legend.title = element_text("Drivetrain Type")) +
+  ggtitle("EPA EPA","Grams of CO2 produced vs Highway MPG, colored by make")+
+  ylab("Tailpipe CO2 [grams/mile]")+
+  xlab("Highway MPG")
+
+
+
+efficiency_plotly <- ggplotly(efficiency)%>%
+  layout(legend = list(orientation = 'h',
+                       x = 0.1, y = -0.1))
+
+```
+
+
+```{r}
+
+efficiency_plotly$sizingPolicy$padding <- "0"
+
+
+
+saveWidget(efficiency_plotly,
+           file.path(here::here(),"2019-10-15","bi_epa_mtcars.html"),     
+           selfcontained = FALSE,
+           libdir = "lib",
+           title = "CO2 vs Highway MPG")
+
+ggsave(file.path(here::here(),"2019-10-15","bi_epa_mtcars.png"),
+       efficiency)
+
+
+```

@@ -1,0 +1,15 @@
+---
+title: "R code"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(plotly)
+
+tt<-tt_load("2019-11-12")
+tt
+```

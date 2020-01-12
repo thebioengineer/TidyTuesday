@@ -1,0 +1,79 @@
+---
+title: "Chicago Bird Collisions - TidyTuesday 05-01-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+library(pause)
+
+# devtools::install_github("ropensci/plotly") #the dev 
+library(plotly)
+library(htmlwidgets)
+
+tt<-tt_load("2019-06-04")
+tt
+```
+
+```{r transform}
+
+ramen_ratings<-tt$ramen_ratings
+
+join<-function(...,by){
+  return(list(...,inner_join(...,by)))
+}
+
+
+ramen_bowl <- ramen_ratings %>% 
+  filter(style%in%c("Pack")) %>% 
+  select(brand,variety,country,pack_stars = stars) %//% 
+  
+  ramen_ratings %>% 
+  filter(style%in%c("Bowl")) %>% 
+  select(brand,variety,country,alt_stars = stars) %>>>%
+  
+  inner_join(by=c("brand","variety","country")) %>% 
+  
+  mutate(altstyle="bowl")  %>%
+  mutate(name=paste(brand,variety,sep=" - "))
+  
+ramen_cup <- ramen_ratings %>% 
+  filter(style%in%c("Pack")) %>% 
+  select(brand,variety,country,pack_stars = stars) %//% 
+  
+  ramen_ratings %>% 
+  filter(style%in%c("Cup")) %>% 
+  select(brand,variety,country,alt_stars = stars) %>>>%
+  
+  inner_join(by=c("brand","variety","country")) %>% 
+  
+  mutate(altstyle="cup")  %>>>%
+  mutate(name=paste(brand,variety,sep=" - "))
+
+ramen<-bind_rows(ramen_bowl,ramen_cup)
+
+
+ramen_plot<-ggplot(ramen) +
+  geom_point(aes(x=pack_stars,y=alt_stars, color = altstyle, text=name))+
+  geom_abline(aes(slope=1,intercept=0))+
+  ylab("Ramen Bowl/Cup Stars")+
+  xlab("Ramen Pack Stars")+
+  ggtitle("Pack or Bowl/Cup- Which to choose?")+
+  theme_bw()
+  
+  
+
+ggplotly(ramen_plot)
+
+
+
+```
+
+
+
+
+

@@ -1,0 +1,62 @@
+---
+title: "Chicago Bird Collisions - TidyTuesday 05-01-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+# devtools::install_github("thebioengineer/tidytuesdayR")
+library(tidytuesdayR)
+library(tidyverse)
+library(rvest)
+library(janitor)
+
+# devtools::install_github("ropensci/plotly") #the dev 
+library(plotly)
+library(htmlwidgets)
+
+tt_data<-tt_load(2019,week=19)
+
+tt_data
+```
+
+```{r transform}
+
+#download wikipeida information
+happiness_score<-read_html("https://en.wikipedia.org/wiki/World_Happiness_Report") %>% 
+  html_nodes(".wikitable") %>% 
+  html_table(fill=TRUE) %>% 
+  `[[`(2) %>% 
+  janitor::clean_names() %>% 
+  select(overall_rank,country,score,gdp_per_capita) %>% 
+  mutate(overall_rank = as.integer(overall_rank),
+         score = as.numeric(score),
+         gdp_per_capita = as.numeric(gdp_per_capita))
+
+
+#cluster groupings over the years
+ratio_2017<-tt_data$student_teacher_ratio %>%
+  filter(year=="2017") %>% 
+  filter(country %in% happiness_score$country) %>% 
+  inner_join(happiness_score) %>% 
+  arrange(overall_rank) %>% 
+  mutate(country=factor(country,levels = unique(country))) %>% 
+  mutate(indicator=factor(indicator,levels= c(
+    "Pre-Primary Education","Primary Education",
+    "Lower Secondary Education","Upper Secondary Education", "Secondary Education",
+     "Tertiary Education", "Post-Secondary Non-Tertiary Education")))
+
+
+
+#nothing too interesting, just that it appears as though there is a larger difference in student ratio among "happier" countries 
+ggplot(ratio_2017)+
+  geom_tile(aes(y=country,x=indicator, fill=student_ratio))
+  
+
+```
+
+
+
+
+

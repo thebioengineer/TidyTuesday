@@ -1,0 +1,110 @@
+---
+title: "National Parks"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(plotly)
+library(ggridges)
+library(geofacet)
+
+tt<-tt_load("2019-09-17")
+tt
+```
+
+```{r transform}
+
+top_state_park <- tt$national_parks %>% 
+  filter(year=="Total",
+         !is.na(parkname)) %>% 
+  group_by(state) %>% 
+  summarise(bestPark=parkname[which.max(visitors)])
+
+
+nparks<-tt$national_parks %>% 
+  filter(year!="Total",
+         !is.na(parkname)) %>% 
+  mutate(year = as.Date(paste0("01-01-",year),format="%m-%d-%Y")) %>% 
+  select(parkname,year,region,state,unit_type,visitors) %>% 
+  filter(parkname %in% top_state_park$bestPark) %>% 
+  group_by(region,parkname) %>% 
+  mutate(regional_park_max = max(visitors)) %>% 
+  group_by(parkname) %>% 
+  mutate(visitors = visitors/max(visitors),
+         age = min(year)) %>% 
+  arrange(region,desc(age),year) %>% 
+  ungroup %>% 
+  mutate(
+    region = factor(region,levels=unique(region)),
+    parkname = factor(parkname,levels=unique(parkname))
+  )
+
+park_attendees<-nparks %>% 
+  ggplot(aes(x = year,
+           y = parkname,
+           height=visitors,
+           fill = region))+
+  geom_ridgeline()+
+  facet_grid(region~.,
+             scales = "free_y",
+             space = "free_y")+
+  theme_minimal()+
+  ggtitle("Park Attendance Over Time (Normalized by maximal attendance)")+
+  theme(axis.text.y = element_text(vjust = -.25))
+park_attendees
+
+ggsave(filename = file.path(here::here(),"2019-09-17","Park_Attendance.png"),
+       plot     = park_attendees,
+       device   = "png",
+       height   = 20,
+       width    = 10)
+
+```
+
+
+```{r delta attendees percent}
+
+
+delta<-function(x,index){
+  x<-x[order(index)]
+  delta<-c(NA,(x[seq(2,length(x))]-x[seq(1,length(x)-1)]))
+  delta[delta==Inf]<-0
+  delta
+}
+
+top_region_park <- tt$national_parks %>% 
+  filter(year=="Total",
+         !is.na(parkname)) %>% 
+    group_by(region) %>% 
+  summarise(bestPark=parkname[which.max(visitors)])
+
+tt$national_parks%>%
+  filter(year!="Total",
+         !is.na(parkname)) %>% 
+  filter(parkname %in% top_region_park$bestpark) %>% 
+  group_by(parkname)%>%
+  arrange(year) %>% 
+  mutate(delta_visitors=delta(visitors,year),
+         delta_direction=ifelse(delta_visitors>0,"green","red"))%>%
+  mutate(delta_visitors=ifelse(is.na(delta_visitors)|is.nan(delta_visitors),0,delta_visitors),
+         totalSum=cumsum(delta_visitors))%>%
+  ggplot()+
+  geom_segment(aes(x=year,     xend = year,
+                   y=totalSum, yend = totalSum-delta_visitors,
+                   color=I(delta_direction)),
+               size=2) +
+  facet_wrap(department~.,
+             scales = "free_y",
+             strip.position = "top",
+             ncol = 3) +
+  ggtitle(label = "US R&D Dollars") +
+  ylab("Δ in visitors()") +
+  xlab("Year")
+
+
+
+```

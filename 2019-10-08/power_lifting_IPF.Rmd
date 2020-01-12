@@ -1,0 +1,107 @@
+---
+title: "The lift of POWER"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+
+tt<-tt_load("2019-10-08")
+tt
+```
+
+Do doping have an effect?
+
+```{r transform}
+
+doping_competitors <- tt$ipf_lifts %>% 
+  filter(place=="DD") %>% 
+  pull(name)
+  
+
+# first event of doping for each person and center at that event
+center_first_dope_event <- tt$ipf_lifts %>% 
+  filter(name %in% doping_competitors) %>% 
+  group_by(name) %>% 
+  arrange(date) %>% 
+  mutate(
+    first_dope = min(date[place=="DD"]),
+    npriordope = sum(date < first_dope),
+    npostdope  = sum(date > first_dope)
+  ) %>% 
+  filter(npriordope > 0, npostdope >0) %>% 
+  mutate(days_centered_first_dope = as.numeric(date - first_dope)) %>% 
+  gather("lift","kg",starts_with("best")) %>% 
+  group_by(name,lift) %>% 
+  arrange(days_centered_first_dope) %>% 
+  mutate(best_prior_dope = max(kg[days_centered_first_dope<0]),na.rm=TRUE) %>% 
+  mutate(normalized_kg = kg/best_prior_dope) %>% 
+  group_by(name) %>% 
+  mutate(caught_again = any(place[days_centered_first_dope>0]=="DD"),
+         better_post_dope = all(normalized_kg[days_centered_first_dope>0]>1.01)) %>% 
+  ungroup()
+  
+
+```
+
+```{r plot}
+
+center_first_dope_event %>% 
+  filter(!is.na(kg)) %>% 
+  mutate( `DQed for Doping` = place=="DD") %>% 
+  mutate( caught_again = factor(if_else(
+    caught_again,"DQ'ed for doping again","Never caught doping again"),
+    levels = c("Never caught doping again","DQ'ed for doping again"))) %>% 
+  ggplot(aes(
+    x=days_centered_first_dope,
+    y=normalized_kg
+    ))+
+  geom_point(
+    aes(color=`DQed for Doping`),
+    alpha = .5
+    )+
+  geom_line(
+    aes(group=name),
+    alpha = .5
+    )+
+  geom_smooth()+
+  geom_hline(
+    aes(yintercept=1)
+    )+
+  facet_grid(lift~sex+caught_again, scales = "free_y")+
+  scale_y_continuous(
+    breaks = c(.5,.75,.9,1,1.1,1.25,1.5)
+  )+
+  theme_bw()+
+  theme(legend.position = "bottom")+
+  ggtitle("Straight Dope","Athletes caught for doping after first offense tended to increase\n their best 3 lifts unlike athletes that were not caught again on average. \nThis might lend itself to the idea of needing more testing \nfor the athletes that continued to trend up at a high rate.")
+
+ggsave("2019-10-08/doping_results.png")
+
+
+```
+
+
+```{r}
+
+center_first_dope_event %>% 
+  select(name,date,place,event,days_centered_first_dope) %>% 
+  mutate(post_dope = days_centered_first_dope>0) %>% 
+  distinct() %>% 
+  group_by(name,post_dope) %>% 
+  summarise(rank = mean(as.numeric(place),na.rm = TRUE)) %>% 
+  spread(post_dope,rank) %>% 
+  mutate(better_post = `TRUE` < `FALSE`) %>% 
+  gather(post_dope,rank,`TRUE`,`FALSE`) %>% 
+  ggplot(aes(x=post_dope,y=rank))+
+  geom_boxplot()+
+  geom_jitter(height = 0)+
+  facet_grid(~better_post)+
+  geom_line(aes(group=name))+
+  scale_y_continuous(breaks = 1:10)
+
+
+```

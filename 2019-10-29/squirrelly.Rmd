@@ -1,0 +1,87 @@
+---
+title: "EPA EPA"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(lubridate)
+library(plotly)
+
+tt<-tt_load("2019-10-29")
+tt
+```
+
+```{r transform}
+
+
+
+git_squirrelly <- tt$nyc_squirrel %>% 
+  group_by(hectare) %>% 
+  count() %>% 
+  ungroup %>% 
+  mutate(NS = substring(hectare,0,2),
+         EW = substring(hectare,3)) %>% 
+  select(-hectare) %>% 
+  spread(EW,n) %>% 
+  gather(EW,n,-NS)
+ 
+
+
+```
+
+```{r plot}
+
+squirrelly <- git_squirrelly %>% 
+  mutate(EW = factor(EW,levels = rev(unique(EW)))) %>% 
+  ggplot(aes(
+    y=EW,
+    x=NS
+    ))+
+  geom_tile(
+    aes(fill = n),
+    # shape = 15,
+    # size = 5
+    width = .9,
+    height = .9
+    )+
+  coord_equal()+
+  theme_minimal()+
+  theme(legend.position = "right",
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()
+        ) +
+  ggtitle("Squirrel Observations in Central Park(NYC)")+
+  xlab("Hectare ID (North-South)")+
+  ylab("Hectare ID (East-West)")+
+  scale_fill_continuous(low="lightgreen",high="darkgreen")
+
+
+squirrelly_plotly <- ggplotly(squirrelly)%>%
+  layout(legend = list(orientation = 'h',
+                       x = 0.1, y = -0.1))
+
+```
+
+
+```{r}
+
+# squirrelly_plotly$sizingPolicy$padding <- "0"
+# 
+# 
+# saveWidget(squirrelly_plotly,
+#            file.path(here::here(),"2019-10-29","squirrelly.html"),     
+#            selfcontained = FALSE,
+#            libdir = "lib",
+           # title = "Squirrel locations in ")
+
+ggsave(file.path(here::here(),"2019-10-29","squirrelly.png"),
+       squirrelly,
+       width = 10,
+       height = 3)
+
+
+```

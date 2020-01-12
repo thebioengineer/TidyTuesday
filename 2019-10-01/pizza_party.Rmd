@@ -1,0 +1,76 @@
+---
+title: "Pizza Party!!!"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(leaflet)
+library(rvest)
+library(htmlwidgets)
+
+tt<-tt_load("2019-10-01")
+tt
+```
+
+```{r transform}
+
+pizzas <- tt$pizza_barstool %>% 
+  filter(review_stats_community_average_score > 0) %>% 
+  mutate(score_scaled = scale(review_stats_community_average_score)) %>% 
+  select(name,
+         address = address1,
+         latitude,
+         longitude,
+         price = price_level,
+         score = review_stats_community_average_score,
+         score_scaled) %>% 
+  rowwise() %>% 
+  mutate(label=paste0(
+    name,"<br>",
+    address,"<br>",
+    "Score: ",round(score,2),"<br>",
+    "Price: ",paste(rep("$",price+1),collapse=""))
+    )
+
+```
+
+```{r leaflet_plot}
+
+calcColor<-function(x,colors,...,granularity=100){
+  colfunc <- colorRampPalette(colors,...)
+  colors<-colfunc(granularity)
+  newx<-round((granularity-1 ) * ((x - min(x)) / (max(x) - min(x))))+1
+  colors[newx]
+}
+
+calcRadius<-function(x,maxsize=100,minsize=5,method=scale_sigmoid){
+    oneScaled<-((x - min(x)) / (max(x) - min(x)))
+    (maxsize - minsize) * method(oneScaled)  + minsize;
+}
+scale_sigmoid<-function(x){
+  (tanh((x-.5)*2*pi)+1)/2
+}
+scale_linear<-function(x){
+  x
+}
+
+ll <- leaflet(pizzas) %>% 
+  addTiles() %>%
+  addCircleMarkers(
+    lng= ~longitude,
+    lat= ~latitude,
+    radius = ~calcRadius(score_scaled,maxsize = 20,minsize=1,scale_sigmoid),
+    popup = ~label,
+    color = ~calcColor(price,color=c("white","#ce0000")),
+    stroke = FALSE,
+    fillOpacity = 0.5
+  )
+
+ll
+
+```
+

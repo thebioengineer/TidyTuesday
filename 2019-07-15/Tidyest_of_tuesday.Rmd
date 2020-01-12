@@ -1,0 +1,25 @@
+---
+title: "Tidyest of Tuesdays - TidyTuesday 07-15-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+
+tt<-tt_load("2019-07-16")
+tt
+```
+
+```{r transform}
+
+wwc_distance<-tt$r4ds_members 
+
+```
+
+
+
+
+

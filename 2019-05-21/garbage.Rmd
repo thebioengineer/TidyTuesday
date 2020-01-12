@@ -1,0 +1,72 @@
+---
+title: "Chicago Bird Collisions - TidyTuesday 05-01-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+
+# devtools::install_github("ropensci/plotly") #the dev 
+library(plotly)
+library(htmlwidgets)
+
+tt<-tt_load("2019-05-21")
+tt
+```
+
+```{r transform}
+
+
+outputdataset<-tt$`per-capita-mismanaged-plastic-waste-vs-gdp-per-capita` %>% 
+  
+  rename(mismanaged_plastic = `Per capita mismanaged plastic waste (kilograms per person per day)`,
+         gdp=`GDP per capita, PPP (constant 2011 international $) (Rate)`,
+         total_pop =`Total population (Gapminder)`) %>% 
+  
+  left_join(  tt$`per-capita-plastic-waste-vs-gdp-per-capita` %>% 
+              rename(total_plastic = `Per capita plastic waste (kilograms per person per day)`,
+                     total_pop =`Total population (Gapminder)`) %>% 
+                select(-`GDP per capita, PPP (constant 2011 international $) (constant 2011 international $)`,
+                       -total_pop),
+            by = c("Entity","Code","Year")) %>% 
+  mutate( ratio_plastic = mismanaged_plastic/total_plastic ) %>% 
+  filter(!is.na(ratio_plastic),
+         !is.na(gdp))
+
+
+#dichotomize ratio by GDP?
+  
+gdp_ratio<-ggplot(outputdataset)+
+  geom_point(aes(x=gdp,
+                 y=ratio_plastic,
+                 text=Entity))+
+  ggtitle("Ratio of Mismanaged Plastic to Total Plastic by GDP in 2010")+
+  ylab("Mismanaged/Total Plastic Waste Ratio")+
+  xlab("Log 10 of Per Capita GDP ($)")+
+  # geom_density(aes(x=ratio_plastic,fill=HighGDP))+
+  scale_x_log10()+
+  geom_rug()
+  
+gdp_ratio_plotly<-ggplotly(gdp_ratio)
+
+gdp_ratio_plotly$sizingPolicy$padding <- "0"
+
+saveWidget(gdp_ratio_plotly,
+           "2019-05-21/Plastic_Ratio_vs_GDP.html",     
+           selfcontained = FALSE,
+           libdir = "lib",
+           title = "atio of Mismanaged Plastic to Total Plastic by GDP in 2010 - TidyTuesday May 22, 2019")
+
+ggsave("2019-05-21/Plastic_Ratio_vs_GDP.png",gdp_ratio)
+
+
+```
+
+
+
+
+

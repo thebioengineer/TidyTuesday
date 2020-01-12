@@ -1,0 +1,111 @@
+---
+title: "Chicago Bird Collisions - TidyTuesday 05-01-2019"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load_libraries}
+library(tidyverse)
+library(janitor)
+
+# devtools::install_github("ropensci/plotly") #the dev 
+library(plotly)
+library(htmlwidgets)
+
+nobel_winners <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winners.csv")
+nobel_winner_all_pubs <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-14/nobel_winner_all_pubs.csv")
+
+```
+
+```{r transform}
+
+#download wikipeida information
+nobel_laureate_locations<-nobel_winners %>% 
+  group_by(birth_country,organization_country,death_country,category) %>% 
+  summarize(n=n()) %>% 
+  arrange(n=desc(n))
+
+
+
+
+nobel_laureate_birth_locations<-nobel_winners %>% 
+  group_by(birth_country,organization_country,category) %>% 
+  summarize(n=n()) %>% 
+  arrange(n=desc(n))
+
+nobel_laureate_death_locations<-nobel_winners %>% 
+  group_by(organization_country,death_country,category) %>% 
+  summarize(n=n()) %>% 
+  arrange(n=desc(n))
+
+
+node_Labels<-c(unique(nobel_laureate_locations$birth_country),
+               unique(nobel_laureate_locations$organization_country),
+               unique(nobel_laureate_locations$death_country))
+
+
+length_birth_country<-length(unique(nobel_laureate_locations$birth_country))
+length_organization_country<-length(unique(nobel_laureate_locations$birth_country))
+length_death_country<-length(unique(nobel_laureate_locations$death_country))
+
+node_birth_country<-setNames(seq(0,length_birth_country-1),unique(nobel_laureate_locations$birth_country))
+node_organization_country<-setNames(seq(length_birth,length_birth+length_organization_country-1),unique(nobel_laureate_locations$organization_country))
+node_death_country<-setNames(seq(length_birth+length_organization_country,length_birth+length_organization_country+length_death_country-1),unique(nobel_laureate_locations$death_country))
+
+
+
+
+link_to_the_past_birth<-data.frame(
+  source = node_birth_country[nobel_laureate_birth_locations$birth_country],
+  target = node_organization_country[nobel_laureate_birth_locations$organization_country],
+  value  = nobel_laureate_birth_locations$n,
+  label  = nobel_laureate_birth_locations$category
+)
+
+link_to_the_past_death<-data.frame(
+  source = node_organization_country[nobel_laureate_death_locations$organization_country],
+  target = node_death_country[nobel_laureate_death_locations$death_country],
+  value  = nobel_laureate_death_locations$n,
+  label  = nobel_laureate_death_locations$category
+)
+
+link_to_the_past<-bind_rows(list(link_to_the_past_birth,link_to_the_past_death))
+
+p <- plot_ly(
+    type = "sankey",
+    
+    node = list(
+      label = node_Labels,
+      color =rep("blue",length(node_Labels)),
+      pad = 5,
+      thickness = 20,
+      line = list(
+        color = "black",
+        width = 0.5
+      )
+    ),
+
+    link = list(
+      source = link_to_the_past$source,
+      target = link_to_the_past$target,
+      value  = link_to_the_past$value,
+      label  = link_to_the_past$label
+    )
+  ) %>% 
+  layout(
+    title = "Nobel - Laureate Locations",
+    font = list(
+      size = 10
+    )
+)
+
+p
+  
+
+```
+
+
+
+
+

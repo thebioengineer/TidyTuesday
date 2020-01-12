@@ -1,6 +1,9 @@
 ---
 title: "PhDs Awarded by Field - TidyTuesday 02-19-2019"
-output: html_notebook
+output:
+  html_output: default
+  word_output:
+    toc: true
 editor_options: 
   chunk_output_type: console
 ---
