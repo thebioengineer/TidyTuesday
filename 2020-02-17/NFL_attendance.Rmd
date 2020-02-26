@@ -17,13 +17,14 @@ tt
 
 ```{r}
 
-nflteams
 
 # Testing Theory
 seahawks_2012_att <- tt$attendance %>% 
   filter(team == "Seattle") %>% 
   filter(year == 2012) %>% 
-  mutate(week = as.character(week))
+  mutate(week = as.character(week)) %>% 
+  unite(team, team, team_name,sep = " ")
+
 
 seahawks_2012_record <- tt$games %>% 
   filter(home_team == "Seattle Seahawks" | away_team == "Seattle Seahawks") %>% 
@@ -33,17 +34,21 @@ seahawks_2012_record <- tt$games %>%
     result = case_when(
       winner == "Seattle Seahawks" ~ "Win",
       tie == "Seattle Seahawks" ~ "Tie",
-      TRUE ~ "Loss")
+      TRUE ~ "Loss"),
+    opponent = case_when(
+      is_home ~ away_team,
+      TRUE ~ home_team
+    )
   ) %>% 
   mutate(week == as.character("week")) %>% 
-  select(year, week, is_home, result)
+  select(year, week, is_home, result, opponent)
 
 team_colors <- nflteams %>% 
   filter(team == "Seattle Seahawks")
 
 seahawks_input_data <- seahawks_2012_att %>% 
-  left_join(seahawks_2012_record, by = c("year","week")) %>% 
-  data.frame(team_colors) %>% 
+  left_join(seahawks_2012_record, by = c( "year","week")) %>% 
+  left_join(team_colors, by = "team") %>% 
   mutate(
     result_color =
       case_when(
@@ -52,18 +57,31 @@ seahawks_input_data <- seahawks_2012_att %>%
         result == "Tie" ~ tertiary
       )
   ) %>% 
-  mutate(week = factor(week, 1:17))
+  mutate(week = factor(week, 1:17)) %>% 
+  filter(!is.na(weekly_attendance)) %>% 
+  mutate( 
+    game = row_number(),
+    lab = paste0("Game", game, "\n",
+          weekly_attendance,"\n",
+          ifelse(is_home,"vs ", "@ "),opponent))
 
 seahawks_input_data %>% 
-  ggplot()+
+  ggplot() +
   geom_bar(aes(
     x = week,
     y = weekly_attendance,
     fill = I(result_color)
   ),stat = "identity") +
+  geom_label(
+    aes(
+      x = week,
+      y = max(weekly_attendance) + 4000,
+      label = lab
+      ),
+    size = 2.5) +
   coord_polar() +
   theme_void() +
-  ggtitle(paste(unique(seahawks_input_data$team.1),"-",unique(seahawks_input_data$year)))
+  ggtitle(paste(unique(seahawks_input_data$team),"-",unique(seahawks_input_data$year)))
 
 
 ```
