@@ -1,0 +1,38 @@
+---
+title: "Tues_data"
+author: "Ellis Hughes"
+date: "2/19/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+
+tt <- tt_load(2020, week = 7)
+tt
+
+```
+
+```{r cars}
+
+tt$hotels %>% 
+  select(
+    month = arrival_date_month, 
+    day   = arrival_date_day_of_month, 
+    year  = arrival_date_year,
+    adr, 
+    lead_time
+  )
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

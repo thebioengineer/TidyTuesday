@@ -1,0 +1,79 @@
+---
+title: "Tues_data"
+author: "Ellis Hughes"
+date: "2/26/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+library(nflscrapR)
+
+tt <- tt_load(2020, week = 6)
+tt
+
+```
+
+```{r}
+
+nflteams
+
+# Testing Theory
+seahawks_2012_att <- tt$attendance %>% 
+  filter(team == "Seattle") %>% 
+  filter(year == 2012) %>% 
+  mutate(week = as.character(week))
+
+seahawks_2012_record <- tt$games %>% 
+  filter(home_team == "Seattle Seahawks" | away_team == "Seattle Seahawks") %>% 
+  filter(year == 2012 ) %>% 
+  mutate(
+    is_home = home_team == "Seattle Seahawks",
+    result = case_when(
+      winner == "Seattle Seahawks" ~ "Win",
+      tie == "Seattle Seahawks" ~ "Tie",
+      TRUE ~ "Loss")
+  ) %>% 
+  mutate(week == as.character("week")) %>% 
+  select(year, week, is_home, result)
+
+team_colors <- nflteams %>% 
+  filter(team == "Seattle Seahawks")
+
+seahawks_input_data <- seahawks_2012_att %>% 
+  left_join(seahawks_2012_record, by = c("year","week")) %>% 
+  data.frame(team_colors) %>% 
+  mutate(
+    result_color =
+      case_when(
+        result == "Win" ~ primary,
+        result == "Loss" ~ secondary,
+        result == "Tie" ~ tertiary
+      )
+  ) %>% 
+  mutate(week = factor(week, 1:17))
+
+seahawks_input_data %>% 
+  ggplot()+
+  geom_bar(aes(
+    x = week,
+    y = weekly_attendance,
+    fill = I(result_color)
+  ),stat = "identity") +
+  coord_polar() +
+  theme_void() +
+  ggtitle(paste(unique(seahawks_input_data$team.1),"-",unique(seahawks_input_data$year)))
+
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
